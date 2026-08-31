@@ -164,7 +164,8 @@ FOOTER = """## Choosing a benchmark
 - **Evaluating a VLA policy?** L3 with an explicit generalization structure: LIBERO, COLOSSEUM, GemBench, VLABench - then SIMPLER or RobotArena ∞ before claiming real-world transfer.
 - **Claiming a generalist policy?** L4 is not optional: AutoEval, RoboArena, RoboChallenge, HomeRobot OVMM.
 - **Long-horizon, house-scale, multi-agent?** BEHAVIOR-1K, PARTNR, Habitat 3.0.
-- **Deploying anything near people?** SafeAgentBench, IS-Bench, BadRobot, and report refusal separately from success.
+- **Deploying anything near people?** SafeAgentBench and IS-Bench for hazardous instructions, MSSBench for context-dependent risk at L0, SafeVLA for the safety-utility trade-off, RoboPAIR and Embodied Red Teaming for adversarial pressure. Report refusal separately from success.
+- **Humanoid or legged base?** HumanoidBench and LocoMuJoCo in sim, Humanoid-Gym for measured zero-shot transfer, BEHAVIOR Robot Suite for real whole-body tasks.
 
 ## What a convincing agentic physical-AI evaluation should report
 
