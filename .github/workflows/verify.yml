@@ -1,0 +1,28 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly link rot check
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: README is in sync with scripts/data.py
+        run: |
+          python3 scripts/build.py
+          git diff --exit-code -- README.md data/benchmarks.csv \
+            || (echo "::error::README.md/benchmarks.csv are stale - run python3 scripts/build.py" && exit 1)
+
+      - name: Resolve arXiv IDs
+        run: python3 scripts/verify.py
+
+      - name: Check every link resolves
+        run: python3 scripts/checklinks.py

@@ -1,0 +1,354 @@
+<div align="center">
+
+# 🦾 Awesome Agentic Physical AI
+
+**A curated, high-signal index of benchmarks for agentic systems in physical AI: physical reasoning, spatial grounding, embodied planning, manipulation, navigation, driving, safety, and real-robot evaluation.**
+
+[![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
+![License: CC0-1.0](https://img.shields.io/badge/license-CC0--1.0-blue.svg?style=flat-square)
+![Entries](https://img.shields.io/badge/entries-107-2563EB?style=flat-square)
+![Links verified](https://img.shields.io/badge/links-machine--verified-059669?style=flat-square)
+
+</div>
+
+_Last reviewed: 2026-08-31. Every arXiv ID and URL below is checked by [`scripts/verify.py`](./scripts/verify.py); `README.md` is generated from [`scripts/data.py`](./scripts/data.py) and should not be edited by hand._
+
+> [!IMPORTANT]
+> **A physical-AI benchmark is not automatically an agentic benchmark.** A benchmark is agentic to the degree that the system's own decisions change what it observes next. Most published "embodied" numbers come from static question answering, where a wrong answer costs nothing and the next input is fixed in advance. Those results are useful and cheap, but they cannot support a claim about closed-loop competence. This list sorts every entry by exactly that property first.
+
+
+## Contents
+
+- [Scope and labels](#scope-and-labels)
+- [Start here](#start-here)
+- [Physical and causal reasoning](#physical-and-causal-reasoning)
+- [World models and generative physics](#world-models-and-generative-physics)
+- [Spatial and 3D grounding](#spatial-and-3d-grounding)
+- [Embodied question answering](#embodied-question-answering)
+- [Embodied planning and decision making](#embodied-planning-and-decision-making)
+- [Manipulation](#manipulation)
+- [Navigation and mobility](#navigation-and-mobility)
+- [Humanoid control and locomotion](#humanoid-control-and-locomotion)
+- [Autonomous driving](#autonomous-driving)
+- [Real-robot evaluation infrastructure](#real-robot-evaluation-infrastructure)
+- [Safety, robustness, and red-teaming](#safety-robustness-and-red-teaming)
+- [Datasets and environments (enablers, not benchmarks)](#datasets-and-environments-enablers-not-benchmarks)
+- [Choosing a benchmark](#choosing-a-benchmark)
+- [What a convincing agentic physical-AI evaluation should report](#what-a-convincing-agentic-physical-ai-evaluation-should-report)
+- [Known gaps](#known-gaps)
+- [Related collections](#related-collections)
+- [Contributing](#contributing)
+
+## Scope and labels
+
+Four axes. The first is the one people conflate.
+
+### 1. Action involvement (primary axis)
+
+| Label | The agent... | Environment responds? | Typical failure it can expose | What it can never show |
+| --- | --- | --- | --- | --- |
+| ![L0][l0-badge] | answers about a fixed observation | No | missing physical knowledge, bad spatial grounding | anything about control |
+| ![L1][l1-badge] | predicts or generates a future | No | implausible dynamics, wrong causal model | whether a plan is executable |
+| ![L2][l2-badge] | emits actions scored against offline data | No | poor action decoding, bad plan structure | recovery from its own mistakes |
+| ![L3][l3-badge] | acts in a simulator that steps state | Yes | compounding error, contact failure, dead ends | real-world contact, sensing, and latency |
+| ![L4][l4-badge] | acts on real hardware | Yes | everything, expensively | little - this is the ground truth |
+
+The distinction that matters most is **L2 to L3**. An open-loop score is computed against a trajectory the agent did not produce, so it never sees the states its own errors lead to. Every benchmark that crosses into L3 reports large drops for the same checkpoint, and that gap is the compounding-error term, not noise.
+
+### 2. Capability
+
+Physical and causal reasoning · spatial and 3D grounding · long-horizon planning · manipulation and contact · navigation and mobility · whole-body control · human-robot interaction and multi-agent · safety and refusal. Tagged per entry in [`data/benchmarks.csv`](./data/benchmarks.csv).
+
+### 3. Cost to run
+
+Cost is a first-class property here, because it decides how often you can afford to measure - and a benchmark you run once per paper is not a development signal.
+
+| Cost | Means | Order of magnitude for one full evaluation |
+| --- | --- | --- |
+| `$` | API calls or CPU only | minutes to a few hours; dollars |
+| `$$` | Single-GPU simulation | hours; tens of dollars |
+| `$$$` | Photorealistic or large-scale parallel simulation | many GPU-hours to GPU-days; hundreds of dollars |
+| `$$$$` | Real hardware, human supervision or teleoperation | days to weeks; hardware, lab space, and staff time |
+
+These are order-of-magnitude planning numbers for a single full evaluation pass at the scale the benchmark authors report, not measured billing. Seeds multiply them: a credible `$$` manipulation result needs enough trials per task that the reported standard error is smaller than the effect being claimed, which routinely means 3 to 5 repeats of the whole suite.
+
+### 4. Verifier
+
+What actually produces the score: **exact match / MCQ** (cheap, gameable by format tricks), **programmatic task success** (the gold standard where it exists), **learned or LLM judge** (report human agreement or it is not evidence), **human rating** (expensive, still necessary for generation), **physical measurement** (real hardware).
+
+### Inclusion decision
+
+| Artifact | Included? | Where |
+| --- | --- | --- |
+| Fixed question set about physics or space, no actions | Yes | L0 sections, labeled as such |
+| Generative model scored on physical plausibility | Yes | World models |
+| Offline trajectory dataset with a held-out split | Only as an enabler | Datasets and environments |
+| Simulator or framework with no canonical task set or metric | Only as an enabler | Datasets and environments |
+| Task suite with a stepped environment and a defined success predicate | Yes | The core of this list |
+| Real-robot protocol, including remote or distributed evaluation | Yes | Real-robot evaluation |
+| Leaderboard with no public tasks, code, or scoring definition | No | - |
+
+Excluded by default: single-paper evaluation sets used only by their authors, benchmarks whose scoring code was never released, and demo videos.
+
+## Start here
+
+Six entries that between them cover the whole action axis, in the order a new project should adopt them.
+
+1. ![L0][l0-badge] **[PhysBench](https://arxiv.org/abs/2501.16411)** - cheapest honest check that your backbone knows any physics at all.
+2. ![L0][l0-badge] **[VSI-Bench](https://arxiv.org/abs/2412.14171)** - the spatial-grounding bottleneck, measurable before you own a robot.
+3. ![L2][l2-badge] **[Embodied Agent Interface](https://arxiv.org/abs/2410.07166)** - decomposes decision making into four modules and returns an error taxonomy instead of one number.
+4. ![L3][l3-badge] **[LIBERO](https://arxiv.org/abs/2306.03310)** - separates spatial, object, goal, and long-horizon shift, so a regression tells you *which* kind of generalization broke.
+5. ![L3][l3-badge] **[BEHAVIOR-1K](https://arxiv.org/abs/2403.09227)** - full-physics, house-scale, long-horizon; where planning and control stop being separable.
+6. ![L4][l4-badge] **[AutoEval](https://arxiv.org/abs/2503.24278)** - unattended real-robot evaluation; the only way L3 numbers stay honest.
+
+For sim results intended to predict real performance, add **[SIMPLER](https://arxiv.org/abs/2405.05941)** (calibrated real-to-sim) and **[COLOSSEUM](https://arxiv.org/abs/2402.08191)** (which perturbation actually breaks the policy).
+
+## Physical and causal reasoning
+
+Does the system know how the physical world behaves? These are almost all **L0/L1**: no action, no state change, cheap to run. They are the right first filter for a perception-reasoning backbone and the wrong evidence for a claim about control.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [PHYRE](https://arxiv.org/abs/1908.05656) [![Code][code-badge]](https://github.com/facebookresearch/phyre "Code") | NeurIPS 2019 | ![L1][l1-badge] | `$` | Task success in 2D sim | 25 templates, 100k tasks | Classic 2D physics puzzles where the agent places one object and the simulator resolves the outcome, scored by AUCCESS over attempt budgets. |
+| [CLEVRER](https://arxiv.org/abs/1910.01442) [![Code][code-badge]](https://github.com/chuangg/CLEVRER "Code") | ICLR 2020 | ![L0][l0-badge] | `$` | Exact match / MCQ | 20k videos, 300k questions | Descriptive, explanatory, predictive and counterfactual questions over synthetic collision videos, separating perception from causal reasoning. |
+| [IntPhys](https://arxiv.org/abs/1803.07616) [![Project][project-badge]](https://www.intphys.com/ "Project") | TPAMI 2019 | ![L0][l0-badge] | `$` | Relative plausibility score | 15k train + probe videos | Violation-of-expectation videos testing object permanence, shape constancy and continuity by comparing plausibility scores of matched possible and impossible clips. |
+| [IntPhys 2](https://arxiv.org/abs/2506.09849) [![Code][code-badge]](https://github.com/facebookresearch/IntPhys2 "Code") | 2025 | ![L0][l0-badge] | `$` | Relative plausibility score | 4 physics principles, photoreal scenes | Photorealistic successor to IntPhys covering permanence, immutability, spatio-temporal continuity and solidity, where current video models stay near chance. |
+| [Physion](https://arxiv.org/abs/2106.08261) [![Code][code-badge]](https://github.com/cogtoolslab/physics-benchmarking-neurips2021 "Code") [![Project][project-badge]](https://physion-benchmark.github.io/ "Project") | NeurIPS 2021 D&B | ![L1][l1-badge] | `$` | Binary prediction accuracy vs. human | 8 scenarios | Asks whether an agent can predict object contact in rigid, soft, cloth and fluid scenarios, benchmarked directly against human observers. |
+| [Physion++](https://arxiv.org/abs/2306.15668) [![Project][project-badge]](https://dingmyu.github.io/physion_v2/ "Project") | NeurIPS 2023 D&B | ![L1][l1-badge] | `$` | Binary prediction accuracy vs. human | 4 property families | Extends Physion to predictions that require inferring latent mechanical properties such as mass, friction, elasticity and deformability from observed motion. |
+| [ContPhy](https://arxiv.org/abs/2402.06119) [![Project][project-badge]](https://physical-reasoning-project.github.io/ "Project") | ICML 2024 | ![L0][l0-badge] | `$` | MCQ / exact match | 2k videos, 30k questions | Continuum-physics reasoning over fluids, ropes and deformable objects, a regime where rigid-body-trained models degrade sharply. |
+| [NEWTON](https://arxiv.org/abs/2310.07018) [![Code][code-badge]](https://github.com/NewtonReasoning/Newton "Code") [![Project][project-badge]](https://newtonreasoning.github.io/ "Project") | 2023 | ![L0][l0-badge] | `$` | MCQ / exact match | 160k questions, 700 objects | Tests whether language models hold physical attribute knowledge about everyday objects at the granularity a manipulation planner would need. |
+| [PhysBench](https://arxiv.org/abs/2501.16411) [![Code][code-badge]](https://github.com/USC-GVL/PhysBench "Code") [![Project][project-badge]](https://physbench.github.io/ "Project") | ICLR 2025 | ![L0][l0-badge] | `$` | MCQ / exact match | 10k interleaved video-image-text entries | Four-domain, nineteen-task audit of vision-language models on physical world understanding, with a large measured gap to human accuracy. |
+| [PhysGame](https://arxiv.org/abs/2412.01800) [![Code][code-badge]](https://github.com/PhysGame/PhysGame "Code") | ACL 2025 | ![L0][l0-badge] | `$` | MCQ / exact match | 880 gameplay videos | Uses glitch videos from games to test whether video LLMs can localize and explain violations of physical commonsense rather than describe surface content. |
+| [Physics-IQ](https://arxiv.org/abs/2501.09038) [![Code][code-badge]](https://github.com/google-deepmind/physics-IQ-benchmark "Code") [![Project][project-badge]](https://physics-iq.github.io/ "Project") | CVPR 2025 | ![L1][l1-badge] | `$$` | Pixel-space metrics vs. real held-out future | 66 real scenarios, 396 videos | Scores generative video models against real filmed continuations of the same scene using spatial and spatio-temporal IoU and MSE, decoupling realism from physics. |
+| [ERQA](https://arxiv.org/abs/2503.20020) [![Code][code-badge]](https://github.com/embodiedreasoning/ERQA "Code") | 2025 (Gemini Robotics) | ![L0][l0-badge] | `$` | MCQ / exact match | 400 questions | Embodied Reasoning QA: 400 multiple-choice questions over the reasoning primitives a robot policy consumes, released with the Gemini Robotics report. |
+| [Cosmos-Reason1](https://arxiv.org/abs/2503.15558) [![Code][code-badge]](https://github.com/nvidia-cosmos/cosmos-reason1 "Code") [![Dataset][dataset-badge]](https://huggingface.co/nvidia/Cosmos-Reason1-7B "Dataset") | 2025 | ![L0][l0-badge] | `$$` | MCQ / exact match | Physical common sense + embodied reasoning suites | Ships an explicit physical-common-sense ontology (space, time, fundamental physics) and paired embodied-reasoning benchmarks across human, robot and driving egocentric video. |
+| [EgoPlan-Bench](https://arxiv.org/abs/2312.06722) [![Code][code-badge]](https://github.com/ChenYi99/EgoPlan "Code") | 2023 | ![L0][l0-badge] | `$` | MCQ / exact match | 3.4k human-verified questions | Next-action selection from real egocentric videos with long visual histories, isolating planning from low-level control. |
+| [EgoPlan-Bench2](https://arxiv.org/abs/2412.04447) [![Code][code-badge]](https://github.com/qiulu66/EgoPlan-Bench2 "Code") | CVPR 2025 | ![L0][l0-badge] | `$` | MCQ / exact match | 1.3k questions, 4 domains, 24 scenes | Broadens egocentric planning evaluation to daily-life scenarios and shows multimodal LLMs remain far below human performance without task-specific tuning. |
+
+## World models and generative physics
+
+Generative models judged as predictors of physical futures. An agentic system uses these as its imagination; a high score means plausible rollouts, not a usable policy. Judging is the weak link - most rely on human raters or a VLM judge, so read the judge's human-agreement number before trusting a leaderboard.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [VideoPhy](https://arxiv.org/abs/2406.03520) [![Code][code-badge]](https://github.com/Hritikbansal/videophy "Code") | ICML 2025 | ![L1][l1-badge] | `$$` | Human + learned auto-rater (VideoCon-Physics) | 688 prompts | Scores generated videos for semantic adherence and physical commonsense across solid-solid, solid-fluid and fluid-fluid interactions. |
+| [VideoPhy-2](https://arxiv.org/abs/2503.06800) [![Code][code-badge]](https://github.com/Hritikbansal/videophy "Code") [![Project][project-badge]](https://videophy2.github.io/ "Project") | 2025 | ![L1][l1-badge] | `$$` | Human + auto-rater, per-rule | 590 prompts, 200 actions | Action-centric successor with per-video physical-rule annotation and a hard split on which all evaluated generators score poorly. |
+| [PhyGenBench](https://arxiv.org/abs/2410.05363) [![Code][code-badge]](https://github.com/OpenGVLab/PhyGenBench "Code") [![Project][project-badge]](https://phygenbench123.github.io/ "Project") | 2024 | ![L1][l1-badge] | `$$` | Staged VLM judging (PhyGenEval) | 160 prompts, 27 physical laws | Organizes text-to-video evaluation by explicit physical law (mechanics, optics, thermal, material) with a three-stage automatic judging pipeline. |
+| [WorldModelBench](https://arxiv.org/abs/2502.20694) [![Code][code-badge]](https://github.com/WorldModelBench-Team/WorldModelBench "Code") [![Project][project-badge]](https://worldmodelbench-team.github.io/ "Project") | 2025 | ![L1][l1-badge] | `$$` | Fine-tuned VLM judge aligned to human | 350 labeled videos, 7 domains, 56 tasks | Judges video generators as world models on instruction following and physical-law adherence across robotics, driving, industrial and human-activity domains. |
+| [PhyWorldBench](https://arxiv.org/abs/2507.13428) [![Project][project-badge]](https://sites.google.com/view/phyworldbench "Project") | 2025 | ![L1][l1-badge] | `$$` | MLLM zero-shot yes/no protocol | 1,050 prompts, 10 categories | Covers basic, composite and deliberately anti-physics scenarios so a model cannot score well by defaulting to familiar dynamics. |
+| [WorldScore](https://arxiv.org/abs/2504.00983) [![Code][code-badge]](https://github.com/haoyi-duan/WorldScore "Code") [![Project][project-badge]](https://haoyi-duan.github.io/WorldScore/ "Project") | ICCV 2025 | ![L1][l1-badge] | `$$$` | Composite metric suite | 3,000 test examples | Unifies 3D, 4D and video world-generation models under one protocol measuring controllability, quality and dynamics over generated camera trajectories. |
+| [EVA](https://arxiv.org/abs/2410.15461) | 2024 | ![L1][l1-badge] | `$$` | EVA-Score (LLM + visual metrics) | Multi-domain anticipation suite | Evaluates whether models can anticipate embodied futures in video across human and robot domains rather than only describe the present frame. |
+
+## Spatial and 3D grounding
+
+Metric and relational grounding: where things are, in whose frame, and how far. This is the capability that most often silently bottlenecks a downstream manipulation policy, and it is measurable at **L0** cost.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [VSI-Bench (Thinking in Space)](https://arxiv.org/abs/2412.14171) [![Code][code-badge]](https://github.com/vision-x-nyu/thinking-in-space "Code") [![Project][project-badge]](https://vision-x-nyu.github.io/thinking-in-space.github.io/ "Project") | CVPR 2025 | ![L0][l0-badge] | `$` | MCQ + numerical answer | 5k+ QA pairs, 288 real videos | Tests metric and relational spatial reasoning from egocentric walkthrough video, including distance, size, order and route questions. |
+| [BLINK](https://arxiv.org/abs/2404.12390) [![Code][code-badge]](https://github.com/zeyofu/BLINK_Benchmark "Code") [![Project][project-badge]](https://zeyofu.github.io/blink/ "Project") | ECCV 2024 | ![L0][l0-badge] | `$` | MCQ / exact match | 3,807 questions, 14 tasks | Fourteen classic perception tasks (relative depth, correspondence, multi-view, forensics) reformatted as questions that humans solve at a glance. |
+| [SpatialRGPT-Bench](https://arxiv.org/abs/2406.01584) [![Code][code-badge]](https://github.com/AnjieCheng/SpatialRGPT "Code") [![Project][project-badge]](https://www.anjiecheng.me/SpatialRGPT "Project") | NeurIPS 2024 | ![L0][l0-badge] | `$` | Qualitative MCQ + quantitative error | 1,406 QA pairs | Region-grounded spatial QA with ground-truth 3D annotations spanning indoor, outdoor and simulated scenes, scoring both relations and metric distances. |
+| [EmbSpatial-Bench](https://arxiv.org/abs/2406.05756) [![Code][code-badge]](https://github.com/mengfeidu/EmbSpatial-Bench "Code") | ACL 2024 | ![L0][l0-badge] | `$` | MCQ / exact match | 3.6k QA pairs | Egocentric spatial-relation QA built from embodied simulator scenes, targeting the relations a navigation or manipulation policy must resolve. |
+| [RoboSpatial](https://arxiv.org/abs/2411.16537) [![Code][code-badge]](https://github.com/NVlabs/RoboSpatial "Code") [![Project][project-badge]](https://chanh.ee/RoboSpatial/ "Project") | CVPR 2025 (oral) | ![L0][l0-badge] | `$` | MCQ + point/box grounding | 1M images, 3M annotations, 1k real 3D scans | Spatial reasoning annotated in ego-, object- and world-centric frames, and shows the frame choice changes which model wins. |
+| [Where2Place (RoboPoint)](https://arxiv.org/abs/2406.10721) [![Code][code-badge]](https://github.com/wentaoyuan/RoboPoint "Code") [![Project][project-badge]](https://robo-point.github.io/ "Project") | CoRL 2024 | ![L0][l0-badge] | `$` | Point-in-mask accuracy | 100 real cluttered scenes | Free-space referring task where a model must emit image points satisfying a relational instruction, scored against human-annotated masks. |
+| [RefSpatial-Bench (RoboRefer)](https://arxiv.org/abs/2506.04308) [![Code][code-badge]](https://github.com/Zhoues/RoboRefer "Code") [![Project][project-badge]](https://zhoues.github.io/RoboRefer/ "Project") | NeurIPS 2025 | ![L0][l0-badge] | `$` | Point/mask accuracy by reasoning depth | Location + placement splits | Grades spatial referring by the number of reasoning steps an instruction requires, exposing failure as anchor chains get longer. |
+| [MMSI-Bench](https://arxiv.org/abs/2505.23764) [![Code][code-badge]](https://github.com/OpenRobotLab/MMSI-Bench "Code") [![Project][project-badge]](https://runsenxu.com/projects/MMSI_Bench/ "Project") | NeurIPS 2025 | ![L0][l0-badge] | `$` | MCQ + error-type attribution | 1,000 hand-crafted questions | Multi-image spatial intelligence questions requiring integration across viewpoints, with an annotated error taxonomy for diagnosing failures. |
+| [OmniSpatial](https://arxiv.org/abs/2506.03135) [![Code][code-badge]](https://github.com/qizekun/OmniSpatial "Code") [![Project][project-badge]](https://qizekun.github.io/omnispatial/ "Project") | 2025 | ![L0][l0-badge] | `$` | MCQ / exact match | 1.5k QA pairs, 50 subtypes | Cognition-grounded spatial benchmark spanning dynamic reasoning, complex spatial logic, spatial interaction and perspective taking. |
+| [SQA3D](https://arxiv.org/abs/2210.07474) [![Code][code-badge]](https://github.com/SilongYong/SQA3D "Code") [![Project][project-badge]](https://sqa3d.github.io/ "Project") | ICLR 2023 | ![L0][l0-badge] | `$` | Exact match | 20.4k situations, 33.4k questions, 650 scenes | Situated QA in real 3D scans: the agent must first localize itself from a described situation, then answer from that pose. |
+| [ScanQA](https://arxiv.org/abs/2112.10482) [![Code][code-badge]](https://github.com/ATR-DBI/ScanQA "Code") | CVPR 2022 | ![L0][l0-badge] | `$` | Exact match + captioning metrics | 41k questions, 800 scenes | 3D question answering over ScanNet point clouds requiring object grounding rather than 2D image cues. |
+
+## Embodied question answering
+
+The first genuinely agentic family: the question cannot be answered from the initial observation, so the agent must move to gather evidence. Watch for benchmarks that score the answer only - an agent can guess correctly without having looked.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [EmbodiedQA](https://arxiv.org/abs/1711.11543) [![Code][code-badge]](https://github.com/facebookresearch/EmbodiedQA "Code") [![Project][project-badge]](https://embodiedqa.org/ "Project") | CVPR 2018 | ![L3][l3-badge] | `$$` | Answer accuracy + navigation distance | House3D environments | The original active-QA formulation: an agent must navigate a simulated house to gather the evidence needed to answer a question. |
+| [OpenEQA](https://open-eqa.github.io/) [![Code][code-badge]](https://github.com/facebookresearch/open-eqa "Code") [![Project][project-badge]](https://open-eqa.github.io/ "Project") | CVPR 2024 | ![L0][l0-badge] ![L3][l3-badge] | `$$` | LLM judge against human answers | 1,600+ human questions, 180 scans | Open-vocabulary EQA over real scanned homes in two modes, episodic-memory and active exploration, scored by an LLM judge calibrated to humans. |
+| [HM-EQA (Explore until Confident)](https://arxiv.org/abs/2403.15941) [![Project][project-badge]](https://explore-eqa.github.io/ "Project") | RSS 2024 | ![L3][l3-badge] | `$$` | Answer accuracy under exploration budget | 500 questions, 267 scenes | Multiple-choice EQA in Habitat-Matterport scenes that scores when an agent decides it has seen enough, not only whether the answer is right. |
+| [EXPRESS-Bench](https://arxiv.org/abs/2503.11117) [![Code][code-badge]](https://github.com/HCPLab-SYSU/EXPRESS-Bench "Code") | ICCV 2025 | ![L3][l3-badge] | `$$` | Joint exploration + answer score | 777 trajectories, 2k QA pairs | Penalizes agents that answer correctly without having actually observed the evidence, by jointly scoring exploration trajectory and answer. |
+| [RoboVQA](https://arxiv.org/abs/2311.00899) [![Code][code-badge]](https://github.com/google-deepmind/robovqa "Code") [![Project][project-badge]](https://robovqa.github.io/ "Project") | ICRA 2024 | ![L0][l0-badge] | `$` | BLEU / human-aligned scoring | 230k QA pairs, 29k long-horizon episodes | Long-horizon robot and human video QA covering planning, affordance, success detection and remaining-step estimation from a real deployment setting. |
+
+## Embodied planning and decision making
+
+High-level decision making with an executable environment underneath. The action space is symbolic or skill-level, so these isolate the reasoning stack from the controller. This is where most LLM/VLM agent work is actually evaluated.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [ALFRED](https://arxiv.org/abs/1912.01734) [![Code][code-badge]](https://github.com/askforalfred/alfred "Code") [![Project][project-badge]](https://askforalfred.com/ "Project") | CVPR 2020 | ![L3][l3-badge] | `$$` | Goal-condition + task success in AI2-THOR | 25k directives, 8 task types | Maps free-form English directives to sequences of navigation and interaction actions in AI2-THOR, with an unseen-scene split that still separates methods. |
+| [ALFWorld](https://arxiv.org/abs/2010.03768) [![Code][code-badge]](https://github.com/alfworld/alfworld "Code") [![Project][project-badge]](https://alfworld.github.io/ "Project") | ICLR 2021 | ![L3][l3-badge] | `$` | Task success (text env) | 6 task types, aligned with ALFRED | Aligns a TextWorld abstraction with ALFRED scenes so policies can be trained in text and evaluated on embodied execution; the default cheap harness for LLM agents. |
+| [VirtualHome](https://arxiv.org/abs/1806.07011) [![Code][code-badge]](https://github.com/xavierpuigf/virtualhome "Code") [![Project][project-badge]](http://virtual-home.org/ "Project") | CVPR 2018 | ![L3][l3-badge] | `$$` | Program / state-change match | 2.7k activity programs | Represents household activities as executable programs in a simulated home, the substrate for much later LLM task-planning evaluation. |
+| [BEHAVIOR-1K](https://arxiv.org/abs/2403.09227) [![Code][code-badge]](https://github.com/StanfordVL/BEHAVIOR-1K "Code") [![Project][project-badge]](https://behavior.stanford.edu/ "Project") | CoRL 2022 / ongoing | ![L3][l3-badge] | `$$$` | Predicate-based goal satisfaction in OmniGibson | 1,000 activities, 50 scenes | Thousand human-surveyed household activities in a full-physics Omniverse simulator, with goals expressed as logical predicates over object states. |
+| [BEHAVIOR Challenge](https://behavior.stanford.edu/challenge/index.html) [![Project][project-badge]](https://behavior.stanford.edu/challenge/index.html "Project") | NeurIPS 2025 / 2026 | ![L3][l3-badge] | `$$$` | Partial-credit predicate satisfaction | 50-100 full-length tasks | Standing competition on full-length BEHAVIOR household tasks with released human teleoperation demonstrations and a partial-credit metric. |
+| [Mini-BEHAVIOR](https://arxiv.org/abs/2310.01824) [![Code][code-badge]](https://github.com/StanfordVL/mini_behavior "Code") | 2023 | ![L3][l3-badge] | `$` | Predicate goal satisfaction (gridworld) | 20 procedurally generated activities | Gridworld reimplementation of BEHAVIOR semantics for fast, low-cost ablation of long-horizon decision making. |
+| [Habitat 3.0](https://arxiv.org/abs/2310.13724) [![Code][code-badge]](https://github.com/facebookresearch/habitat-lab "Code") [![Project][project-badge]](https://aihabitat.org/habitat3/ "Project") | ICLR 2024 | ![L3][l3-badge] | `$$$` | Task success + human-collaboration metrics | Social navigation and rearrangement tasks | Adds simulated humanoid avatars and a human-in-the-loop tool to Habitat, enabling social rearrangement and social navigation evaluation. |
+| [PARTNR](https://arxiv.org/abs/2411.00081) [![Code][code-badge]](https://github.com/facebookresearch/partnr-planner "Code") [![Project][project-badge]](https://aihabitat.org/partnr/ "Project") | ICLR 2025 | ![L3][l3-badge] | `$$$` | Simulation-in-the-loop LLM-generated evaluation functions | 100k tasks, 60 houses, 5,819 objects | Large-scale household collaboration benchmark with spatial, temporal and heterogeneous-capability constraints, and paired human-in-the-loop trials. |
+| [Embodied Agent Interface (EAI)](https://arxiv.org/abs/2410.07166) [![Code][code-badge]](https://github.com/embodied-agent-interface/embodied-agent-interface "Code") [![Project][project-badge]](https://embodied-agent-interface.github.io/ "Project") | NeurIPS 2024 D&B | ![L2][l2-badge] | `$` | Per-module error taxonomy over LTL goals | 438 tasks, 1,475 goals, 4 modules | Decomposes LLM embodied decision making into four interchangeable modules and reports a fine-grained error taxonomy instead of a single success rate. |
+| [LoTa-Bench](https://arxiv.org/abs/2402.08178) [![Code][code-badge]](https://github.com/lbaa2022/LLMTaskPlanning "Code") [![Project][project-badge]](https://choi-jaewoo.github.io/LoTa-Bench/ "Project") | ICLR 2024 | ![L3][l3-badge] | `$$` | Automatic execution success in AI2-THOR / VirtualHome | 308 tasks across 2 simulators | Removes human plan grading by executing LLM-generated plans directly in simulators, making planner comparison cheap and repeatable. |
+| [EmbodiedBench](https://arxiv.org/abs/2502.09560) [![Code][code-badge]](https://github.com/EmbodiedBench/EmbodiedBench "Code") [![Project][project-badge]](https://embodiedbench.github.io/ "Project") | ICML 2025 | ![L3][l3-badge] | `$$` | Task success across 4 environments | 1,128 tasks, 6 capability subsets | Spans high-level household planning to low-level manipulation in one harness, with capability-sliced subsets for commonsense, spatial and long-horizon skills. |
+| [EmbodiedEval](https://arxiv.org/abs/2501.11858) [![Code][code-badge]](https://github.com/thunlp/EmbodiedEval "Code") [![Project][project-badge]](https://embodiedeval.github.io/ "Project") | 2025 | ![L3][l3-badge] | `$$` | Interactive task success | 328 tasks, 125 3D scenes, 5 categories | Interactive evaluation of MLLMs as embodied agents in a unified simulator, covering navigation, interaction, attribute QA, spatial QA and social tasks. |
+| [TEACh](https://arxiv.org/abs/2110.00534) [![Code][code-badge]](https://github.com/alexa/teach "Code") | AAAI 2022 | ![L3][l3-badge] | `$$` | Goal-condition success | 3k+ human-human dialogue sessions | Household tasks specified through human-human dialogue, so an agent must resolve underspecification by asking rather than assuming. |
+| [VLABench](https://arxiv.org/abs/2412.18194) [![Code][code-badge]](https://github.com/OpenMOSS/VLABench "Code") [![Project][project-badge]](https://vlabench.github.io/ "Project") | 2024 | ![L3][l3-badge] | `$$` | Task success + skill-level scoring | 100 task categories, 2000+ objects | Language-conditioned manipulation tasks that deliberately require mesh-level world knowledge, common sense and multi-step reasoning, not just skill execution. |
+| [CookBench](https://arxiv.org/abs/2508.03232) | 2025 | ![L3][l3-badge] | `$$` | Stepwise plan + execution success | Cooking scenarios in a high-fidelity sim | Long-horizon cooking scenarios that stress fine-grained state tracking and interdependent subgoals in a single continuous episode. |
+| [LEGENT / EmbodiedEval-style open worlds](https://arxiv.org/abs/2404.18243) [![Code][code-badge]](https://github.com/thunlp/LEGENT "Code") [![Project][project-badge]](https://legent.ai/ "Project") | ACL 2024 demo | ![L3][l3-badge] | `$$` | Scenario-specific success | Scalable generated scenes | Open platform pairing generated 3D worlds with an embodied LLM agent loop, useful for building new task suites rather than a fixed leaderboard. |
+
+## Manipulation
+
+Closed-loop control with contact. Success requires a policy, not a plan, and results are sensitive to controller, camera pose, and seed. Report the number of trials and the evaluation protocol or the number is not comparable.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [Meta-World](https://arxiv.org/abs/1910.10897) [![Code][code-badge]](https://github.com/Farama-Foundation/Metaworld "Code") [![Project][project-badge]](https://meta-world.github.io/ "Project") | CoRL 2019 | ![L3][l3-badge] | `$$` | Success rate over held-out tasks | 50 tasks, ML/MT splits | Fifty tabletop manipulation tasks with fixed multi-task and meta-learning splits, still the default sanity check for policy generalization. |
+| [RLBench](https://arxiv.org/abs/1909.12271) [![Code][code-badge]](https://github.com/stepjam/RLBench "Code") [![Project][project-badge]](https://sites.google.com/view/rlbench "Project") | RA-L 2020 | ![L3][l3-badge] | `$$` | Task success in CoppeliaSim | 100 tasks with demo generator | Hundred-task manipulation suite with unlimited scripted demonstrations, the base environment for many 3D policy papers. |
+| [CALVIN](https://arxiv.org/abs/2112.03227) [![Code][code-badge]](https://github.com/mees/calvin "Code") [![Project][project-badge]](http://calvin.cs.uni-freiburg.de/ "Project") | RA-L 2022 | ![L3][l3-badge] | `$$` | Sequential success over 5-task chains | 4 environments (A-D), 34 tasks | Language-conditioned long-horizon manipulation scored by how many consecutive instructions an agent completes, with an explicit unseen-environment split. |
+| [LIBERO](https://arxiv.org/abs/2306.03310) [![Code][code-badge]](https://github.com/Lifelong-Robot-Learning/LIBERO "Code") [![Project][project-badge]](https://libero-project.github.io/ "Project") | NeurIPS 2023 D&B | ![L3][l3-badge] | `$$` | Success rate + forgetting metrics | 130 tasks, 4 suites | Separates distribution shift into spatial, object, goal and long-horizon suites to measure transfer and forgetting, not just peak success. |
+| [ManiSkill2](https://arxiv.org/abs/2302.04659) [![Code][code-badge]](https://github.com/haosulab/ManiSkill "Code") [![Project][project-badge]](https://maniskill2.github.io/ "Project") | ICLR 2023 | ![L3][l3-badge] | `$$` | Task success, high-throughput | 20 task families, 2000+ objects | Object-diverse manipulation with fast GPU-parallel rollouts, including deformable and soft-body tasks that most suites omit. |
+| [ManiSkill3](https://arxiv.org/abs/2410.00425) [![Code][code-badge]](https://github.com/haosulab/ManiSkill "Code") [![Project][project-badge]](https://www.maniskill.ai/ "Project") | RSS 2025 | ![L3][l3-badge] | `$$` | Task success, GPU-parallel | 12+ task families, 20+ robots | GPU-parallelized successor reaching very high visual-observation throughput, which changes what an RL or evaluation budget can cover. |
+| [VIMA-Bench](https://arxiv.org/abs/2210.03094) [![Code][code-badge]](https://github.com/vimalabs/VIMA "Code") [![Project][project-badge]](https://vimalabs.github.io/ "Project") | ICML 2023 | ![L3][l3-badge] | `$$` | 4-level zero-shot generalization protocol | 17 tasks, 600k+ trajectories | Multimodal-prompt manipulation with four explicitly nested generalization levels, from placement shift to novel task composition. |
+| [COLOSSEUM](https://arxiv.org/abs/2402.08191) [![Code][code-badge]](https://github.com/robot-colosseum/robot-colosseum "Code") [![Project][project-badge]](https://robot-colosseum.github.io/ "Project") | RSS 2024 | ![L3][l3-badge] | `$$` | Success under 14 controlled perturbations | 20 tasks x 14 perturbation axes | Systematically perturbs color, texture, size, lighting, distractors and camera pose to measure which factor actually breaks a manipulation policy. |
+| [RoboCasa](https://arxiv.org/abs/2406.02523) [![Code][code-badge]](https://github.com/robocasa/robocasa "Code") [![Project][project-badge]](https://robocasa.ai/ "Project") | RSS 2024 | ![L3][l3-badge] | `$$$` | Task success in kitchen scenes | 100 tasks, 120 scenes, 2,500+ objects | Large-scale kitchen simulation with generatively produced assets and scenes, designed to study how imitation performance scales with synthetic data. |
+| [ARNOLD](https://arxiv.org/abs/2304.04321) [![Code][code-badge]](https://github.com/arnold-benchmark/arnold "Code") [![Project][project-badge]](https://arnold-benchmark.github.io/ "Project") | ICCV 2023 | ![L3][l3-badge] | `$$$` | Continuous goal-state success | 8 tasks, 20 scenes, photorealistic | Grounds instructions in continuous target states (for example pour to a level) rather than discrete goals, with explicit unseen-state splits. |
+| [GemBench / 3D-LOTUS++](https://arxiv.org/abs/2410.01345) [![Code][code-badge]](https://github.com/vlc-robot/robot-3dlotus "Code") [![Project][project-badge]](https://www.di.ens.fr/willow/research/gembench/ "Project") | 2024 | ![L3][l3-badge] | `$$` | Success across 4 generalization levels | 16 tasks, 31 variations | Four-level generalization ladder for language-conditioned manipulation ending in wholly unseen long-horizon tasks. |
+| [SIMPLER](https://arxiv.org/abs/2405.05941) [![Code][code-badge]](https://github.com/simpler-env/SimplerEnv "Code") [![Project][project-badge]](https://simpler-env.github.io/ "Project") | CoRL 2024 | ![L3][l3-badge] | `$$` | Sim success rate calibrated to real success | Google-Robot + WidowX task sets | Sim environments built so that measured success correlates with real-robot success for the same checkpoint, making sim a proxy evaluator for VLAs. |
+| [RoboTwin](https://arxiv.org/abs/2504.13059) [![Code][code-badge]](https://github.com/TianxingChen/RoboTwin "Code") [![Project][project-badge]](https://robotwin-benchmark.github.io/ "Project") | CVPR 2025 | ![L3][l3-badge] | `$$` | Bimanual task success (sim + real twin) | Dual-arm tasks with generated expert data | Paired real and simulated dual-arm setups with automatically generated expert trajectories, so sim scores can be checked against the physical twin. |
+| [RoboTwin 2.0](https://arxiv.org/abs/2506.18088) [![Code][code-badge]](https://github.com/RoboTwin-Platform/RoboTwin "Code") [![Project][project-badge]](https://robotwin-platform.github.io/ "Project") | 2025 | ![L3][l3-badge] | `$$` | Bimanual success under domain randomization | 50 tasks, 731 objects, 5 embodiments | Scales the twin approach with a large object library and strong randomization aimed specifically at cluttered, contact-rich bimanual settings. |
+| [BiGym](https://arxiv.org/abs/2407.07788) [![Code][code-badge]](https://github.com/chernyadev/bigym "Code") [![Project][project-badge]](https://chernyadev.github.io/bigym/ "Project") | CoRL 2024 | ![L3][l3-badge] | `$$` | Task success from human demos | 40 mobile bimanual tasks | Mobile bimanual household tasks driven by human-collected demonstrations rather than scripted policies, which makes the demo distribution realistically noisy. |
+| [GenManip](https://arxiv.org/abs/2506.10966) [![Project][project-badge]](https://genmanip.axi404.top/ "Project") | CVPR 2025 | ![L3][l3-badge] | `$$$` | Task success + generalization slices | 200 scenarios, LLM-generated task graphs | Compares end-to-end VLA policies against modular LLM-planner pipelines on the same generated tabletop scenarios. |
+| [VLMbench](https://arxiv.org/abs/2206.08522) [![Code][code-badge]](https://github.com/eric-ai-lab/VLMbench "Code") | NeurIPS 2022 D&B | ![L3][l3-badge] | `$$` | Compositional task success | 8 task categories with automatic generation | Automatically generated compositional manipulation instructions with a matched program-based evaluator. |
+| [Bi-DexHands](https://arxiv.org/abs/2206.08686) [![Code][code-badge]](https://github.com/PKU-MARL/DexterousHands "Code") | NeurIPS 2022 D&B | ![L3][l3-badge] | `$$` | Reward / success on dexterous tasks | 20+ bimanual dexterous tasks | Bimanual dexterous-hand tasks in Isaac Gym covering the high-DoF control regime that tabletop suites skip. |
+
+## Navigation and mobility
+
+Movement through space under a language, image, or category goal. The cheapest closed-loop family, and the one with the most mature metric discipline (SPL, nDTW) for penalizing right-answer-wrong-route.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [R2R (Room-to-Room VLN)](https://arxiv.org/abs/1711.07280) [![Code][code-badge]](https://github.com/peteanderson80/Matterport3DSimulator "Code") [![Project][project-badge]](https://bringmeaspoon.org/ "Project") | CVPR 2018 | ![L3][l3-badge] | `$` | Success rate + SPL on unseen split | 21,567 instructions, 90 buildings | The founding VLN benchmark: follow natural-language route instructions through panoramic real-scan graphs, with a held-out-building split. |
+| [RxR](https://arxiv.org/abs/2010.07954) [![Code][code-badge]](https://github.com/google-research-datasets/RxR "Code") | EMNLP 2020 | ![L3][l3-badge] | `$` | SR / SPL / nDTW path fidelity | 126k instructions, 3 languages | Multilingual, densely time-aligned VLN with path-fidelity metrics that penalize reaching the goal by the wrong route. |
+| [VLN-CE](https://arxiv.org/abs/2004.02857) [![Code][code-badge]](https://github.com/jacobkrantz/VLN-CE "Code") [![Project][project-badge]](https://jacobkrantz.github.io/vlnce/ "Project") | ECCV 2020 | ![L3][l3-badge] | `$$` | SR / SPL under continuous control | R2R transferred to continuous space | Removes the navigation-graph assumption from VLN, exposing the large drop between waypoint-level and continuous-control navigation. |
+| [HM3D / Habitat ObjectNav](https://arxiv.org/abs/2109.08238) [![Code][code-badge]](https://github.com/facebookresearch/habitat-lab "Code") [![Project][project-badge]](https://aihabitat.org/datasets/hm3d/ "Project") | NeurIPS 2021 D&B | ![L3][l3-badge] | `$$` | Success + SPL, annual challenge | 1,000 building-scale scans | Large real-scan dataset backing the Habitat ObjectNav challenge, the standard measure of semantic exploration in unseen buildings. |
+| [GOAT-Bench](https://arxiv.org/abs/2404.06609) [![Project][project-badge]](https://mukulkhanna.github.io/goat-bench/ "Project") | CVPR 2024 | ![L3][l3-badge] | `$$` | Success + SPL over multimodal goal sequences | 10 goals per episode, 675 scenes | Open-vocabulary lifelong navigation where goals arrive as category, language or image within one long episode, testing reuse of accumulated map memory. |
+| [HomeRobot OVMM](https://arxiv.org/abs/2306.11565) [![Code][code-badge]](https://github.com/facebookresearch/home-robot "Code") [![Project][project-badge]](https://ovmm.github.io/ "Project") | NeurIPS 2023 Competition | ![L4][l4-badge] | `$$$$` | Paired sim and real success | 200 scenes, 20k+ objects, Stretch platform | Open-vocabulary mobile manipulation defined identically in simulation and on a real Hello Robot Stretch, making the sim-real gap the reported quantity. |
+| [GRUtopia](https://arxiv.org/abs/2407.10943) [![Code][code-badge]](https://github.com/OpenRobotLab/GRUtopia "Code") | 2024 | ![L3][l3-badge] | `$$$` | Task success across social/nav/manip tasks | 100k interactive scenes, 89 categories | City-scale simulated society with LLM-driven NPCs, extending embodied evaluation beyond the single-household setting. |
+| [AerialVLN](https://arxiv.org/abs/2308.06735) [![Code][code-badge]](https://github.com/AirVLN/AirVLN "Code") | ICCV 2023 | ![L3][l3-badge] | `$$` | SR / SPL for UAV flight | 25 city-level scenes, 8,446 paths | Vision-language navigation for UAVs in city-scale outdoor scenes, where the action space is genuinely three-dimensional. |
+| [CityNav](https://arxiv.org/abs/2406.14240) [![Project][project-badge]](https://water-cookie.github.io/city-nav-proj/ "Project") | 2024 | ![L3][l3-badge] | `$$` | Goal success + trajectory metrics | 32k instructions with geographic grounding | Language-goal aerial navigation grounded in real geographic map data rather than synthetic layouts. |
+
+## Humanoid control and locomotion
+
+Whole-body and high-DoF control. Included because agentic physical AI increasingly assumes a humanoid or legged base, and because these expose the hierarchy problem: high-level reasoning is useless without a low-level skill that survives contact.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [HumanoidBench](https://arxiv.org/abs/2403.10506) [![Code][code-badge]](https://github.com/carlosferrazza/humanoid-bench "Code") [![Project][project-badge]](https://humanoid-bench.github.io/ "Project") | 2024 | ![L3][l3-badge] | `$$` | Task reward / success | 27 tasks (whole-body + dexterous) | Simulated humanoid with two dexterous hands across locomotion and manipulation tasks, showing standard RL fails without learned low-level skills. |
+| [LocoMuJoCo](https://arxiv.org/abs/2311.02496) [![Code][code-badge]](https://github.com/robfiras/loco-mujoco "Code") | NeurIPS 2023 workshop | ![L3][l3-badge] | `$$` | Imitation metrics vs. motion capture | 12+ embodiments, real mocap datasets | Imitation-learning benchmark for locomotion across quadrupeds, bipeds and musculoskeletal models with matched real motion-capture data. |
+| [Isaac Lab / Orbit](https://arxiv.org/abs/2301.04195) [![Code][code-badge]](https://github.com/isaac-sim/IsaacLab "Code") [![Project][project-badge]](https://isaac-sim.github.io/IsaacLab/ "Project") | RA-L 2023 | ![L3][l3-badge] | `$$$` | Environment-specific reward / success | Modular task suite, GPU-parallel | Unified GPU-parallel robot-learning framework whose bundled locomotion and manipulation environments are the de facto sim baseline on NVIDIA stacks. |
+
+## Autonomous driving
+
+The most operationally mature physical-AI domain, and the source of the field's best habits: closed-loop scoring, infraction accounting, and reactive versus non-reactive protocols. Worth reading even if you never touch a vehicle.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [CARLA](https://arxiv.org/abs/1711.03938) [![Code][code-badge]](https://github.com/carla-simulator/carla "Code") [![Project][project-badge]](https://leaderboard.carla.org/ "Project") | CoRL 2017 | ![L3][l3-badge] | `$$$` | Driving Score = route completion x infraction penalty | Leaderboard 2.0 long routes | The reference closed-loop driving simulator and public leaderboard, whose driving score multiplies route completion by an infraction penalty. |
+| [Bench2Drive](https://arxiv.org/abs/2406.03877) [![Code][code-badge]](https://github.com/Thinklab-SJTU/Bench2Drive "Code") [![Project][project-badge]](https://thinklab-sjtu.github.io/Bench2Drive/ "Project") | NeurIPS 2024 D&B | ![L3][l3-badge] | `$$$` | Per-skill closed-loop success + driving score | 220 short routes, 44 scenarios | Decomposes closed-loop driving into isolated skills (merging, overtaking, emergency brake, yielding) so a single aggregate score cannot hide a specific failure. |
+| [NAVSIM](https://arxiv.org/abs/2406.15349) [![Code][code-badge]](https://github.com/autonomousvision/navsim "Code") | NeurIPS 2024 D&B | ![L2][l2-badge] | `$$` | PDM score (non-reactive sim) | Built on nuPlan/OpenScene data | Data-driven non-reactive simulation whose PDM score correlates with closed-loop driving while costing far less than full simulation. |
+| [nuPlan](https://arxiv.org/abs/2106.11810) [![Code][code-badge]](https://github.com/motional/nuplan-devkit "Code") | CVPR 2021 workshop | ![L3][l3-badge] | `$$$` | Closed-loop reactive/non-reactive scores | 1,300 h of driving, 4 cities | Large-scale planning benchmark with both reactive and non-reactive closed-loop protocols over real logged driving. |
+| [Waymo Open Sim Agents Challenge](https://arxiv.org/abs/2305.12032) [![Code][code-badge]](https://github.com/waymo-research/waymax "Code") [![Project][project-badge]](https://waymo.com/open/challenges/2025/sim-agents/ "Project") | NeurIPS 2023 D&B | ![L3][l3-badge] | `$$$` | Distributional realism (meta-metric) | Waymo Open Motion Dataset scenarios | Scores simulated traffic agents by distributional realism rather than single-trajectory error, the standard for evaluating learned sim agents. |
+| [DriveLM](https://arxiv.org/abs/2312.14150) [![Code][code-badge]](https://github.com/OpenDriveLab/DriveLM "Code") [![Project][project-badge]](https://opendrivelab.com/challenge2024/ "Project") | ECCV 2024 | ![L1][l1-badge] | `$` | Graph-VQA scoring + LLM judge | nuScenes + CARLA graph QA | Structures driving reasoning as a graph of perception, prediction and planning questions so intermediate reasoning is scored, not only the final action. |
+| [LingoQA](https://arxiv.org/abs/2312.14115) [![Code][code-badge]](https://github.com/wayveai/LingoQA "Code") | ECCV 2024 | ![L0][l0-badge] | `$` | Lingo-Judge (learned, human-correlated) | 419k QA pairs, 28k video clips | Free-form driving video QA with a learned judge validated against human ratings, covering action justification as well as perception. |
+| [nuScenes-QA](https://arxiv.org/abs/2305.14836) [![Code][code-badge]](https://github.com/qiantianwen/NuScenes-QA "Code") | AAAI 2024 | ![L0][l0-badge] | `$` | Exact match | 34k scenes, 460k QA pairs | Multi-modal QA over multi-view camera and LiDAR streams in outdoor driving scenes. |
+
+## Real-robot evaluation infrastructure
+
+Infrastructure for measuring policies on hardware. The bottleneck is not the model, it is reset, success detection, and cross-site comparability. Any claim about a generalist policy eventually has to pass through this row of the table.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [AutoEval](https://arxiv.org/abs/2503.24278) [![Code][code-badge]](https://github.com/zhouzypaul/auto_eval "Code") [![Project][project-badge]](https://auto-eval.github.io/ "Project") | 2025 | ![L4][l4-badge] | `$$$$` | Learned success classifier + autonomous reset | 24/7 unattended real cells | Runs unattended real-robot policy evaluation using a learned reset policy and success classifier, with reported agreement against human-scored ground truth. |
+| [RoboArena](https://arxiv.org/abs/2506.18123) [![Project][project-badge]](https://robo-arena.github.io/ "Project") | 2025 | ![L4][l4-badge] | `$$$$` | Pairwise human preference, Elo-style aggregation | Distributed across multiple institutions | Pools heterogeneous real-robot labs and aggregates pairwise preference judgments, because absolute success rates are not comparable across sites. |
+| [RoboChallenge](https://arxiv.org/abs/2510.17950) [![Project][project-badge]](https://robochallenge.ai/ "Project") | 2025 | ![L4][l4-badge] | `$$$$` | Remote scripted trials on shared hardware | Table30 task suite, 30 real tasks | Provides remote access to a standardized real-robot cell so external teams can evaluate policies without owning hardware. |
+| [RobotArena ∞](https://arxiv.org/abs/2510.23571) [![Project][project-badge]](https://robotarenainf.github.io/ "Project") | ICLR 2026 | ![L3][l3-badge] | `$$$` | Automated VLM scoring + human preference | 70 real-to-sim environments (BridgeSim) | Converts user-recorded real videos into simulated evaluation environments, reporting greater discriminative power than narrow real-to-sim suites. |
+
+## Safety, robustness, and red-teaming
+
+Physical action makes failure irreversible, so refusal and process-level safety are separate axes from capability. Note that most of these measure whether the agent *does* the unsafe thing, not whether it *could have known* it was unsafe.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [SafeAgentBench](https://arxiv.org/abs/2412.13178) [![Code][code-badge]](https://github.com/shengyin1224/SafeAgentBench "Code") | 2024 | ![L3][l3-badge] | `$$` | Execution + semantic rejection scoring | 750 tasks, 10 hazard types | Pairs hazardous and safe instructions in an interactive simulator and scores both refusal and safe execution, finding refusal rates remain low. |
+| [BadRobot](https://arxiv.org/abs/2407.20242) [![Project][project-badge]](https://Embodied-LLMs-Safety.github.io "Project") | ICLR 2025 | ![L3][l3-badge] | `$$` | Attack success rate on physical actions | Manipulation-risk taxonomy | Shows that jailbreaking an embodied LLM produces physically consequential actions, and measures attack success on the resulting behaviour. |
+| [IS-Bench](https://arxiv.org/abs/2506.16402) | 2025 | ![L3][l3-badge] | `$$` | Process-aware interactive safety scoring | 161 interactive scenarios, 388 hazards | Scores safety over the whole execution process rather than the final state, catching agents that reach a safe goal through an unsafe intermediate step. |
+| [EARBench](https://arxiv.org/abs/2408.04449) [![Code][code-badge]](https://github.com/zihao-ai/EARBench "Code") | 2024 | ![L2][l2-badge] | `$` | Automated risk assessment pipeline | Generated physical-risk scenarios | Automates generation and assessment of physical-risk scenarios for foundation-model-driven embodied systems. |
+
+## Datasets and environments (enablers, not benchmarks)
+
+Simulators, datasets, and frameworks that everything above is built from. They are listed for navigation, not as evaluations: reporting a number on a held-out split of a training corpus is not a benchmark result.
+
+| Benchmark | Venue | Action | Cost | Verifier | Scale | What it measures |
+| --- | --- | :-: | :-: | --- | --- | --- |
+| [Open X-Embodiment / RT-X](https://arxiv.org/abs/2310.08864) [![Code][code-badge]](https://github.com/google-deepmind/open_x_embodiment "Code") [![Project][project-badge]](https://robotics-transformer-x.github.io/ "Project") | ICRA 2024 | ![L4][l4-badge] | `n/a` | Not a benchmark: shared training corpus | 1M+ episodes, 22 embodiments, 34 labs | Pooled cross-embodiment robot dataset; treat as a training substrate, not an evaluation - reporting numbers on its held-out splits is not a benchmark result. |
+| [DROID](https://arxiv.org/abs/2403.12945) [![Code][code-badge]](https://github.com/droid-dataset/droid_policy_learning "Code") [![Project][project-badge]](https://droid-dataset.github.io/ "Project") | RSS 2024 | ![L4][l4-badge] | `n/a` | Not a benchmark: shared training corpus | 76k trajectories, 564 scenes, 52 buildings | Large in-the-wild manipulation dataset on a standardized hardware platform, widely used as a pretraining set and as the basis for real evaluation cells. |
+| [AgiBot World Colosseo](https://arxiv.org/abs/2503.06669) [![Code][code-badge]](https://github.com/OpenDriveLab/AgiBot-World "Code") [![Project][project-badge]](https://agibot-world.com/ "Project") | 2025 | ![L4][l4-badge] | `n/a` | Dataset + associated challenge | 1M+ trajectories, 100+ real scenarios | Large-scale real-robot dataset with an associated challenge, focused on dexterous bimanual tasks in structured real environments. |
+| [AI2-THOR](https://arxiv.org/abs/1712.05474) [![Code][code-badge]](https://github.com/allenai/ai2thor "Code") [![Project][project-badge]](https://ai2thor.allenai.org/ "Project") | 2017 | ![L3][l3-badge] | `$` | Environment, not a scored benchmark | 120+ interactive scenes | Interactive household simulator underlying ALFRED, SafeAgentBench, LoTa-Bench and much of the LLM-agent literature. |
+| [Habitat-Lab / Habitat 2.0](https://arxiv.org/abs/2106.14405) [![Code][code-badge]](https://github.com/facebookresearch/habitat-lab "Code") [![Project][project-badge]](https://aihabitat.org/ "Project") | NeurIPS 2021 | ![L3][l3-badge] | `$$` | Environment + task definitions | Rearrangement suite, high-throughput sim | High-throughput embodied simulation stack whose rearrangement tasks and ObjectNav definitions are reused by most navigation benchmarks. |
+| [robosuite](https://arxiv.org/abs/2009.12293) [![Code][code-badge]](https://github.com/ARISE-Initiative/robosuite "Code") [![Project][project-badge]](https://robosuite.ai/ "Project") | 2020 | ![L3][l3-badge] | `$$` | Environment, not a scored benchmark | 9 base tasks, modular controllers | Modular MuJoCo manipulation framework that RoboCasa, robomimic and many task suites build on. |
+| [robomimic](https://arxiv.org/abs/2108.03298) [![Code][code-badge]](https://github.com/ARISE-Initiative/robomimic "Code") [![Project][project-badge]](https://robomimic.github.io/ "Project") | CoRL 2021 | ![L2][l2-badge] | `$$` | Offline imitation study protocol | Human + machine demo datasets | Standardized study of offline imitation from human demonstrations, useful for isolating data quality from algorithm choice. |
+
+## Choosing a benchmark
+
+- **Evaluating a VLM backbone for a robot stack?** Start L0: PhysBench, VSI-Bench, ERQA, RoboSpatial. If it cannot answer where an object is relative to the gripper, the control results will not save it.
+- **Evaluating a planner or an LLM agent loop?** L2/L3 with module-level error reporting: Embodied Agent Interface, EmbodiedBench, PARTNR, LoTa-Bench.
+- **Evaluating a VLA policy?** L3 with an explicit generalization structure: LIBERO, COLOSSEUM, GemBench, VLABench - then SIMPLER or RobotArena ∞ before claiming real-world transfer.
+- **Claiming a generalist policy?** L4 is not optional: AutoEval, RoboArena, RoboChallenge, HomeRobot OVMM.
+- **Long-horizon, house-scale, multi-agent?** BEHAVIOR-1K, PARTNR, Habitat 3.0.
+- **Deploying anything near people?** SafeAgentBench, IS-Bench, BadRobot, and report refusal separately from success.
+
+## What a convincing agentic physical-AI evaluation should report
+
+- **The action level, stated explicitly.** An L0 or L2 number presented as evidence of embodied competence is the single most common overclaim in this field.
+- **Trials and variance.** Success rate over how many episodes, how many seeds, and the standard error. Manipulation results with one seed are anecdotes.
+- **The unseen split, named.** Unseen instructions, objects, scenes, or embodiments are four different claims; say which one was held out.
+- **The verifier.** If a model judges, report its agreement with humans on this task distribution, not on the paper it came from.
+- **Compute and wall-clock.** GPU-hours, API cost, and human supervision time. A method that needs a 10x budget for a 2-point gain should have to say so.
+- **The sim-real relationship.** If the claim is about the real world, report either real trials or a calibrated real-to-sim evaluator, and the measured correlation.
+- **Failures, not just successes.** Which stage failed - grounding, planning, or control - and the recovery behaviour after the first mistake.
+- **Safety and refusal, separately.** A policy that completes hazardous instructions faster is not a better policy.
+
+## Known gaps
+
+Places where the benchmark landscape is thin, listed as open work rather than complaint.
+
+- **Cross-embodiment evaluation.** Data pooling across embodiments is far ahead of evaluation across embodiments; there is no widely accepted protocol for scoring one policy on multiple robot morphologies.
+- **Persistent, multi-session agents.** Almost everything here resets between episodes. Physical agents that accumulate a map, a skill library, and preferences over weeks are barely measured.
+- **Cost-normalized leaderboards.** Almost no benchmark reports score per GPU-hour or per dollar, which makes scaling-based gains indistinguishable from method gains.
+- **Human-in-the-loop and interruption.** Handover, correction mid-task, and graceful stopping are common in deployment and rare in benchmarks.
+- **Long-tail failure and irreversibility.** Success rate treats all failures alike; dropping a plate and pausing are not the same outcome.
+- **Judge reliability under distribution shift.** VLM judges are increasingly load-bearing in this list, and their agreement with humans is usually measured once, on the benchmark's own distribution.
+
+## Related collections
+
+- [Embodied AI Paper List](https://github.com/HCPLab-SYSU/Embodied_AI_Paper_List) - broad embodied-AI survey repository and reading list.
+- [Awesome Embodied Robotics and Agent](https://github.com/zchoi/Awesome-Embodied-Robotics-and-Agent) - LLM/VLM-driven embodied agents and robotics papers.
+- [Awesome Vision-Language-Action Models](https://github.com/yueen-ma/Awesome-VLA) - VLA architectures, data, and evaluation.
+- [Awesome LLM Robotics](https://github.com/GT-RIPL/Awesome-LLM-Robotics) - long-running index of language models in robotics.
+- [Awesome World Models](https://github.com/LMD0311/Awesome-World-Model) - world-model papers spanning driving, robotics, and video generation.
+- [Awesome Recursive Self-Improvement](https://github.com/pinkbubblebubble/awesome-rsi) - the format this list follows, for self-improving agent systems.
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first. Entries are added to [`scripts/data.py`](./scripts/data.py), not to `README.md` - a pull request that edits the generated file will be asked to move the change. Every entry must state its action level, cost tier, and verifier, and must pass `python3 scripts/verify.py`.
+
+## License
+
+[CC0-1.0](./LICENSE). The linked works belong to their respective authors.
+
+<!-- Shared badge definitions -->
+
+[l0-badge]: https://img.shields.io/badge/L0-passive-64748B?style=flat-square
+[l1-badge]: https://img.shields.io/badge/L1-predict-0EA5E9?style=flat-square
+[l2-badge]: https://img.shields.io/badge/L2-open--loop-7C3AED?style=flat-square
+[l3-badge]: https://img.shields.io/badge/L3-closed--loop_sim-2563EB?style=flat-square
+[l4-badge]: https://img.shields.io/badge/L4-real_robot-DC2626?style=flat-square
+[code-badge]: https://img.shields.io/badge/Code-181717?style=flat-square&logo=github&logoColor=white
+[project-badge]: https://img.shields.io/badge/Project-0EA5E9?style=flat-square&logo=googlechrome&logoColor=white
+[dataset-badge]: https://img.shields.io/badge/Dataset-FFD21E?style=flat-square&logo=huggingface&logoColor=111827
