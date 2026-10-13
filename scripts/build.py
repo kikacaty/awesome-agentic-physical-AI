@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, "scripts")
 from data import BENCHMARKS, SECTIONS  # noqa: E402
 
-REVIEWED = "2026-10-07"
+REVIEWED = "2026-10-13"
 
 ACTION_BADGE = {
     "L0": "![L0][l0-badge]",
